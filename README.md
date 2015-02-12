@@ -9,11 +9,11 @@ usage: cmxDeploy.py -u "root" -p "cloudera" -m "CM-SERVER-IP" -w "ip1,ip2,ip3,..
 You have a running Cloudera Manager Server with embedded database started-up. You can use the preferred option as documented in ["Installation Path B - Manual Installation Using Cloudera Manager Packages"] [1](http://www.cloudera.com/content/cloudera-content/cloudera-docs/CM5/latest/Cloudera-Manager-Installation-Guide/cm5ig_install_path_B.html?scroll=cmig_topic_6_6), or easier option using ["Installation Path A - Automated Installation by Cloudera Manager
 "] [2](http://www.cloudera.com/content/cloudera-content/cloudera-docs/CM5/latest/Cloudera-Manager-Installation-Guide/cm5ig_install_path_A.html)
 
-#### TL;DR: copy-and-paste below Example in RHEL/CentOS
+#### TL;DR: copy-and-paste below example in RHEL/CentOS
 ``` bash
 yum install -y git python-setuptools
 easy_install pip
-git clone https://github.com/cloudera/cm_api.git $HOME/cm_api && pip install $HOME/cm_api/python
+git clone https://github.com/cloudera/cm_api.git -b cm5-5.3 $HOME/cm_api && pip install $HOME/cm_api/python
 curl -L https://raw.githubusercontent.com/gdgt/cmapi/master/bootstrap-cm.sh | bash
 curl -L https://raw.githubusercontent.com/gdgt/cmapi/master/cmxDeploy.py -o $HOME/cmxDeploy.py && chmod +x $HOME/cmxDeploy.py
 python $HOME/cmxDeploy.py -u "root" -p "cloudera" -m "cm-ip" -w "ip1,ip2,ip3,..."
