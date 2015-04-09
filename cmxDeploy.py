@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.12.0624'
+__version__ = '0.13.0318'
 
 import socket
 import re
@@ -38,12 +38,12 @@ def init_cluster():
             raise Exception("Invalid manifest.json")
 
     # Install CDH5 latest version
-    cdh5_url = 'http://archive.cloudera.com/cdh5/parcels/latest'
+    cdh5_url = '%s/cdh5/parcels/%s' % (cmx.archive_url, cmx.cdh_version)
     cmx.parcel.append(manifest_to_dict(cdh5_url + "/manifest.json"))
 
     # Install GPLEXTRAS5 to match CDH5 version
-    gpl_extras_url = 'http://archive.cloudera.com/gplextras5/parcels/%s' % \
-                     cmx.parcel[0]['version'].split('-')[0]
+    gpl_extras_url = '%s/gplextras5/parcels/%s' % \
+                     (cmx.archive_url, cmx.parcel[0]['version'].split('-')[0])
     cmx.parcel.append(manifest_to_dict(gpl_extras_url + "/manifest.json"))
 
     cm.update_config({"REMOTE_PARCEL_REPO_URLS": "http://archive.cloudera.com/impala/parcels/latest/,"
@@ -76,8 +76,13 @@ def add_hosts_to_cluster():
     host_list = list(set([socket.getfqdn(x) for x in cmx.host_names] + [socket.getfqdn(cmx.cm_server)]) -
                      set([x.hostname for x in api.get_all_hosts()]))
     if host_list:
-        cmd = cm.host_install(user_name=cmx.ssh_root_user, host_names=host_list,
-                              password=cmx.ssh_root_password, private_key=cmx.ssh_private_key)
+        # cmd = cm.host_install(user_name=cmx.ssh_root_user, host_names=host_list,
+        #                       password=cmx.ssh_root_password, private_key=cmx.ssh_private_key)
+
+        # TODO: Temporary fix to Flag for unlimited strength JCE policy files installation (If unset, defaults to false)
+        host_install_args = {"userName": cmx.ssh_root_user, "hostNames": host_list, "password": cmx.ssh_root_password,
+                             "privateKey": cmx.ssh_private_key, "unlimitedJCE": True}
+        cmd = cm._cmd('hostInstall', data=host_install_args)
         print "Installing host(s) to cluster '%s' - [ http://%s:7180/cmf/command/%s/details ]" % \
               (socket.getfqdn(cmx.cm_server), cmx.cm_server, cmd.id)
         check.status_for_command("Hosts: %s " % host_list, cmd)
@@ -639,7 +644,10 @@ def setup_sqoop():
         cdh.create_service_role(service, "SQOOP_SERVER", [x for x in hosts if x.id == 0][0])
 
         check.status_for_command("Creating Sqoop 2 user directory", service.create_sqoop_user_dir())
-        check.status_for_command("Creating Sqoop 2 Database", service._cmd('SqoopCreateDatabase'))
+        # CDH Version check if greater than 5.3.0
+        vc = lambda v: tuple(map(int, (v.split("."))))
+        if vc(cmx.parcel[0]['version'].split('-')[0]) >= vc("5.3.0"):
+            check.status_for_command("Creating Sqoop 2 Database", service._cmd('SqoopCreateDatabase'))
         # This service is started later on
         # check.status_for_command("Starting Sqoop 2 Service", service.start())
 
@@ -1051,6 +1059,13 @@ def teardown(keep_cluster=True):
             except ApiException as err:
                 print " ERROR: %s" % err.message
 
+            # Unset service dependencies and configuration settings
+            service_config = {}
+            for k, v in service.get_config()[0].items():
+                service_config[k] = None
+
+        for service in service_list[:None:-1]:
+            # Remove service roles
             print "Processing service %s" % service.name
             for role in service.get_all_roles():
                 print " Delete role %s" % role.name
@@ -1527,10 +1542,13 @@ def parse_options():
     cmx_config_options = {'ssh_root_password': None, 'ssh_root_user': 'root', 'ssh_private_key': None,
                           'cluster_name': 'Cluster 1', 'cluster_version': 'CDH5',
                           'username': 'admin', 'password': 'admin', 'cm_server': None,
-                          'host_names': None, 'license_file': None, 'parcel': []}
+                          'host_names': None, 'license_file': None, 'parcel': [],
+                          'archive_url': 'http://archive.cloudera.com'}
 
     cmx_config_options.update({'kerberos': {'kdc_host': None, 'security_realm': None,
                                             'kdc_user': None, 'kdc_password': None}})
+
+    cmx_config_options.update({'cdh_version': 'latest'})
 
     def cmx_args(option, opt_str, value, *args, **kwargs):
         if option.dest == 'host_names':
@@ -1552,6 +1570,13 @@ def parse_options():
         elif option.dest == 'ssh_private_key':
             with open(value, 'r') as f:
                 cmx_config_options[option.dest] = f.read()
+        elif option.dest == 'cdh_version':
+            print "switch %s value check: %s" % (opt_str, value)
+            _cdh_repo = urllib2.urlopen("%s/cdh5/parcels/" % cmx_config_options["archive_url"]).read()
+            _cdh_ver = [link.replace('/', '') for link in re.findall(r"<a.*?\s*href=\".*?\".*?>(.*?)</a>", _cdh_repo)
+                        if link not in ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory']]
+            if value not in _cdh_ver:
+                exit(1)
         else:
             cmx_config_options[option.dest] = value
 
@@ -1577,6 +1602,8 @@ def parse_options():
     parser = OptionParser()
     parser.add_option('-d', '--teardown', dest='teardown', action="store", type="string",
                       help='Teardown Cloudera Manager Cluster. Required arguments "keep_cluster" or "remove_cluster".')
+    parser.add_option('-i', '--cdh-version', dest='cdh_version', type="string", action='callback',
+                      callback=cmx_args, default='latest', help='Install CDH version. Default "latest"')
     parser.add_option('-k', '--ssh-private-key', dest='ssh_private_key', type="string", action='callback',
                       callback=cmx_args, help='The private key to authenticate with the hosts. '
                                               'Specify either this or a password.')
