@@ -26,30 +26,34 @@ python $HOME/cmxDeploy.py -u "root" -p "cloudera" -m "cm-ip" -w "ip1,ip2,ip3,...
 Usage: cmxDeploy.py [options]
 
 Options:
-  -h, --help                show this help message and exit
-  -m CM_SERVER,         --cm-server=CM_SERVER
-                            *Set Cloudera Manager Server Host.
-                            Note: This is the host where the Cloudera Management Services get installed.
-  -w HOST_NAMES,        --host-names=HOST_NAMES
-                            *Set target node(s) list, separate with comma eg: -w
-                            "host1,host2,...,host(n)". 
-                            Notes: 
-                             - enclose in double quote, also avoid leaving spaces between commas.
-                             - CM_SERVER excluded in this list, if you want install CDH Services in CM_SERVER 
-                             add the host to this list..
-  -n CLUSTER_NAME,      --cluster-name=CLUSTER_NAME
-                            Set Cloudera Manager Cluster name enclosed in double
-                            quotes. Default "Cluster 1"
+  -h, --help            show this help message and exit
+  -d TEARDOWN, --teardown=TEARDOWN
+                        Teardown Cloudera Manager Cluster. Required arguments
+                        "keep_cluster" or "remove_cluster".
+  -i CDH_VERSION, --cdh-version=CDH_VERSION
+                        Install CDH version. Default "latest"
+  -k SSH_PRIVATE_KEY, --ssh-private-key=SSH_PRIVATE_KEY
+                        The private key to authenticate with the hosts.
+                        Specify either this or a password.
+  -l LICENSE_FILE, --license-file=LICENSE_FILE
+                        Cloudera Manager License file name
+  -m CM_SERVER, --cm-server=CM_SERVER
+                        *Set Cloudera Manager Server Host. Note: This is the
+                        host where the Cloudera Management Services get
+                        installed.
+  -n CLUSTER_NAME, --cluster-name=CLUSTER_NAME
+                        Set Cloudera Manager Cluster name enclosed in double
+                        quotes. Default "Cluster 1"
   -p SSH_ROOT_PASSWORD, --ssh-root-password=SSH_ROOT_PASSWORD
-                            *Set target node(s) ssh password..
-  -u SSH_ROOT_USER,     --ssh-root-user=SSH_ROOT_USER
-                            Set target node(s) ssh username. Default "root"
-  -k SSH_PRIVATE_KEY,   --ssh-private-key=SSH_PRIVATE_KEY
-                            The private key to authenticate with the hosts.
-                            Specify either this OR a password.
-  -l LICENSE_FILE,      --license-file=LICENSE_FILE
-                            Cloudera Manager License file name
-  -d, --teardown            Teardown Cloudera Manager Cluster. Required arguments "keep_cluster" or "remove_cluster".
+                        *Set target node(s) ssh password..
+  -u SSH_ROOT_USER, --ssh-root-user=SSH_ROOT_USER
+                        Set target node(s) ssh username. Default root
+  -w HOST_NAMES, --host-names=HOST_NAMES
+                        *Set target node(s) list, separate with comma eg: -w
+                        host1,host2,...,host(n). Note: - enclose in double
+                        quote, also avoid leaving spaces between commas. -
+                        CM_SERVER excluded in this list, if you want install
+                        CDH Services in CM_SERVER add the host to this list.
 ```
 ## References
 https://raw.githubusercontent.com/justinhayes/cm_api/master/python/examples/auto-deploy/deploycloudera.py

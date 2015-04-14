@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0318'
+__version__ = '0.13.0628'
 
 import socket
 import re
@@ -1260,25 +1260,26 @@ class ManagementActions:
         """
         Get password for "ACTIVITYMONITOR', 'REPORTSMANAGER', 'NAVIGATOR"
         :param role_type:
-        :return:
+        :return False if db.mgmt.properties is missing
         """
         contents = []
         mgmt_password = False
 
-        if os.path.exists('/etc/cloudera-scm-server'):
-            file_path = os.path.join('/etc/cloudera-scm-server', 'db.mgmt.properties')
+        if os.path.isfile('/etc/cloudera-scm-server/db.mgmt.properties'):
             try:
-                with open(file_path) as f:
+                print "> Reading %s password from /etc/cloudera-scm-server/db.mgmt.properties" % role_type
+                with open(os.path.join('/etc/cloudera-scm-server', 'db.mgmt.properties')) as f:
                     contents = f.readlines()
-            except IOError:
-                print "Unable to open file %s." % file_path
 
-        # role_type expected to be in
-        # "ACTIVITYMONITOR', 'REPORTSMANAGER', 'NAVIGATOR"
-        if role_type in ['ACTIVITYMONITOR', 'REPORTSMANAGER', 'NAVIGATOR']:
-            idx = "com.cloudera.cmf.%s.db.password=" % role_type
-            match = [s.rstrip('\n') for s in contents if idx in s][0]
-            mgmt_password = match[match.index(idx) + len(idx):]
+                # role_type expected to be in
+                # "ACTIVITYMONITOR', 'REPORTSMANAGER', 'NAVIGATOR"
+                if role_type in ['ACTIVITYMONITOR', 'REPORTSMANAGER', 'NAVIGATOR']:
+                    idx = "com.cloudera.cmf.%s.db.password=" % role_type
+                    match = [s.rstrip('\n') for s in contents if idx in s][0]
+                    mgmt_password = match[match.index(idx) + len(idx):]
+
+            except IOError:
+                print "Unable to open file: /etc/cloudera-scm-server/db.mgmt.properties"
 
         return mgmt_password
 
@@ -1644,7 +1645,8 @@ def parse_options():
     management = ManagementActions
     if not (bool(management.get_mgmt_password("ACTIVITYMONITOR"))
             and bool(management.get_mgmt_password("REPORTSMANAGER"))):
-        exit(1)
+        cmx_config_options['amon_password'] = bool(management.get_mgmt_password("ACTIVITYMONITOR"))
+        cmx_config_options['rman_password'] = bool(management.get_mgmt_password("REPORTSMANAGER"))
     else:
         cmx_config_options['amon_password'] = management.get_mgmt_password("ACTIVITYMONITOR")
         cmx_config_options['rman_password'] = management.get_mgmt_password("REPORTSMANAGER")
@@ -1681,20 +1683,22 @@ def main():
                   parcel_version=cmx.parcel[0]['version'])
 
     # Example CM API to setup Cloudera Manager Management services - not installing 'ACTIVITYMONITOR'
-    mgmt_roles = ['SERVICEMONITOR', 'ALERTPUBLISHER', 'EVENTSERVER', 'HOSTMONITOR']
-    if management.licensed():
-        mgmt_roles.append('REPORTSMANAGER')
-    management(*mgmt_roles).setup()
-    # "START" Management roles
-    management(*mgmt_roles).start()
-    # "STOP" Management roles
-    # management_roles(*mgmt_services).stop()
+    # Skip MGMT role installation if amon_password and rman_password password are False
+    if cmx.amon_password and cmx.rman_password:
+        mgmt_roles = ['SERVICEMONITOR', 'ALERTPUBLISHER', 'EVENTSERVER', 'HOSTMONITOR']
+        if management.licensed():
+            mgmt_roles.append('REPORTSMANAGER')
+        management(*mgmt_roles).setup()
+        # "START" Management roles
+        management(*mgmt_roles).start()
+        # "STOP" Management roles
+        # management_roles(*mgmt_services).stop()
 
-    # Upload license or Begin Trial
-    if cmx.license_file:
-        management.upload_license()
-    # _OR_
-    # begin_trial()
+        # Upload license or Begin Trial
+        if cmx.license_file:
+            management.upload_license()
+        # _OR_
+        # begin_trial()
 
     # Step-Through - Setup services in order of service dependencies
     # Zookeeper, hdfs, HBase, Solr, Spark, Yarn,
