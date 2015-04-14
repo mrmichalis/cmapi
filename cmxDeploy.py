@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0628'
+__version__ = '0.13.0629'
 
 import socket
 import re
@@ -12,7 +12,7 @@ import os
 import sys
 import random
 
-from cm_api.api_client import ApiResource, ApiException
+from cm_api.api_client import ApiResource, ApiException, API_CURRENT_VERSION
 from cm_api.endpoints.hosts import *
 from cm_api.endpoints.services import ApiServiceSetupInfo, ApiService
 
@@ -23,7 +23,7 @@ def init_cluster():
     :return:
     """
     print "> Initialise Cluster"
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     # Update Cloudera Manager configuration
     cm = api.get_cloudera_manager()
 
@@ -38,7 +38,7 @@ def init_cluster():
             raise Exception("Invalid manifest.json")
 
     # Install CDH5 latest version
-    cdh5_url = '%s/cdh5/parcels/%s' % (cmx.archive_url, cmx.cdh_version)
+    cdh5_url = "%s/cdh5/parcels/%s" % (cmx.archive_url, cmx.cdh_version)
     cmx.parcel.append(manifest_to_dict(cdh5_url + "/manifest.json"))
 
     # Install GPLEXTRAS5 to match CDH5 version
@@ -68,7 +68,7 @@ def add_hosts_to_cluster():
     :return:
     """
     print "> Add hosts to Cluster: %s" % cmx.cluster_name
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     cm = api.get_cloudera_manager()
 
@@ -106,7 +106,7 @@ def host_rack():
     """
     # TODO: Add host to rack
     print "> Add host to rack"
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     hosts = []
     for h in api.get_all_hosts():
@@ -124,7 +124,7 @@ def deploy_parcel(parcel_product, parcel_version):
     Deploy parcels
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     parcel = cluster.get_parcel(parcel_product, parcel_version)
     if parcel.stage != 'ACTIVATED':
@@ -179,7 +179,7 @@ def setup_zookeeper():
     Starting ZooKeeper Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "ZOOKEEPER"
     if cdh.get_service_type(service_type) is None:
@@ -212,7 +212,7 @@ def setup_hdfs():
     > Creating HDFS /tmp directory
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "HDFS"
     if cdh.get_service_type(service_type) is None:
@@ -285,7 +285,7 @@ def setup_hbase():
     Starting HBase Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "HBASE"
     if cdh.get_service_type(service_type) is None:
@@ -322,7 +322,7 @@ def setup_solr():
     Starting Solr Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "SOLR"
     if cdh.get_service_type(service_type) is None:
@@ -361,7 +361,7 @@ def setup_ks_indexer():
     KS_INDEXER
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "KS_INDEXER"
     if cdh.get_service_type(service_type) is None:
@@ -397,7 +397,7 @@ def setup_spark():
     Starting Spark Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "SPARK"
     if cdh.get_service_type(service_type) is None:
@@ -437,7 +437,7 @@ def setup_spark_on_yarn():
     Sqoop Client
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "SPARK_ON_YARN"
     if cdh.get_service_type(service_type) is None:
@@ -478,7 +478,7 @@ def setup_yarn():
     Starting YARN (MR2 Included) Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "YARN"
     if cdh.get_service_type(service_type) is None:
@@ -532,7 +532,7 @@ def setup_mapreduce():
     MapReduce
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "MAPREDUCE"
     if cdh.get_service_type(service_type) is None:
@@ -581,7 +581,7 @@ def setup_hive():
     Starting Hive Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "HIVE"
     if cdh.get_service_type(service_type) is None:
@@ -627,7 +627,7 @@ def setup_sqoop():
     Starting Sqoop 2 Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "SQOOP"
     if cdh.get_service_type(service_type) is None:
@@ -657,7 +657,7 @@ def setup_sqoop_client():
     Sqoop Client
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "SQOOP_CLIENT"
     if cdh.get_service_type(service_type) is None:
@@ -685,7 +685,7 @@ def setup_impala():
     Starting Impala Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "IMPALA"
     if cdh.get_service_type(service_type) is None:
@@ -733,7 +733,7 @@ def setup_oozie():
     Starting Oozie Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "OOZIE"
     if cdh.get_service_type(service_type) is None:
@@ -765,7 +765,7 @@ def setup_hue():
     Starting Hue Service
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "HUE"
     if cdh.get_service_type(service_type) is None:
@@ -789,7 +789,7 @@ def setup_hue():
 
 
 def setup_flume():
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "FLUME"
     if cdh.get_service_type(service_type) is None:
@@ -810,8 +810,6 @@ def setup_hdfs_ha():
     Setup hdfs-ha
     :return:
     """
-    # api = ApiResource(cmx.cm_server, username=cmx.username, password=cmx.password, version=6)
-    # cluster = api.get_cluster(cmx.cluster_name)
     try:
         print "> Setup HDFS-HA"
         hdfs = cdh.get_service_type('HDFS')
@@ -865,8 +863,6 @@ def setup_yarn_ha():
     Setup yarn-ha
     :return:
     """
-    # api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
-    # cluster = api.get_cluster(cmx.cluster_name)
     print "> Setup YARN-HA"
     yarn = cdh.get_service_type('YARN')
     zookeeper = cdh.get_service_type('ZOOKEEPER')
@@ -894,7 +890,7 @@ def enable_kerberos():
     > Start cluster
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cm = api.get_cloudera_manager()
     cluster = api.get_cluster(cmx.cluster_name)
     print "> Setup Kerberos"
@@ -943,7 +939,7 @@ def disable_kerberos():
     > Start cluster
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cm = api.get_cloudera_manager()
     cluster = api.get_cluster(cmx.cluster_name)
     print "> Setup Kerberos"
@@ -976,7 +972,7 @@ def disable_kerberos():
 
 
 def setup_sentry():
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     service_type = "SENTRY"
     if cdh.get_service_type(service_type) is None:
@@ -1016,7 +1012,7 @@ def setup_easy():
     """
     An example using auto_assign_roles() and auto_configure()
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
     print "> Easy setup for cluster: %s" % cmx.cluster_name
     # Do not install these services
@@ -1046,7 +1042,7 @@ def teardown(keep_cluster=True):
     Teardown the Cluster
     :return:
     """
-    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     try:
         cluster = api.get_cluster(cmx.cluster_name)
         service_list = cluster.get_all_services()
@@ -1127,7 +1123,8 @@ class ManagementActions:
     """
     def __init__(self, *role_list):
         self._role_list = role_list
-        self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                                version=cmx.api_version)
         self._cm = self._api.get_cloudera_manager()
         try:
             self._service = self._cm.get_service()
@@ -1158,7 +1155,6 @@ class ManagementActions:
         Requires License: 'NAVIGATOR', 'NAVIGATORMETASERVER', 'REPORTSMANAGER"
         :return:
         """
-        # api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
         print "> Setup Management Services"
         self._cm.update_config({"TSQUERY_STREAMS_LIMIT": 1000})
         hosts = management.get_hosts(include_cm_host=True)
@@ -1213,7 +1209,8 @@ class ManagementActions:
         Check if Cluster is licensed
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         cm = api.get_cloudera_manager()
         try:
             return bool(cm.get_license().uuid)
@@ -1226,7 +1223,8 @@ class ManagementActions:
         Upload License file
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         cm = api.get_cloudera_manager()
         if cmx.license_file and not management.licensed():
             print "Upload license"
@@ -1244,7 +1242,8 @@ class ManagementActions:
         Begin Trial
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         print "def begin_trial"
         if not management.licensed():
             try:
@@ -1294,7 +1293,8 @@ class ManagementActions:
         attributes = {'id': None, 'hostId': None, 'hostname': None, 'md5host': None, 'ipAddress': None, }
         return a list of hosts
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
 
         w_hosts = set(enumerate(cmx.host_names))
         if include_cm_host and socket.gethostbyname(cmx.cm_server) \
@@ -1320,7 +1320,8 @@ class ManagementActions:
         Restart Management Services
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         mgmt = api.get_cloudera_manager().get_service()
 
         check.status_for_command("Stop Management services", mgmt.stop())
@@ -1336,7 +1337,8 @@ class ServiceActions:
     """
     def __init__(self, *service_list):
         self._service_list = service_list
-        self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                                version=cmx.api_version)
         self._cluster = self._api.get_cluster(cmx.cluster_name)
 
     def stop(self):
@@ -1362,7 +1364,8 @@ class ServiceActions:
         :param name:
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         cluster = api.get_cluster(cmx.cluster_name)
         try:
             service = [x for x in cluster.get_all_services() if x.type == name][0]
@@ -1389,7 +1392,8 @@ class ServiceActions:
         :param host.hostId, or ApiService:
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         # cluster = api.get_cluster(cmx.cluster_name)
         if isinstance(obj, str) or isinstance(obj, unicode):
             for role_name in [x.roleName for x in api.get_host(obj).roleRefs if 'GATEWAY' in x.roleName]:
@@ -1424,7 +1428,8 @@ class ServiceActions:
         Restart Cluster and Cluster wide deploy client config
         :return:
         """
-        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                          version=cmx.api_version)
         cluster = api.get_cluster(cmx.cluster_name)
         print "Restart cluster: %s" % cmx.cluster_name
         check.status_for_command("Stop %s" % cmx.cluster_name, cluster.stop())
@@ -1497,7 +1502,8 @@ class ServiceActions:
 
 class ActiveCommands:
     def __init__(self):
-        self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+        self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+                                version=cmx.api_version)
 
     def status_for_command(self, message, command):
         """
@@ -1543,8 +1549,8 @@ def parse_options():
     cmx_config_options = {'ssh_root_password': None, 'ssh_root_user': 'root', 'ssh_private_key': None,
                           'cluster_name': 'Cluster 1', 'cluster_version': 'CDH5',
                           'username': 'admin', 'password': 'admin', 'cm_server': None,
-                          'host_names': None, 'license_file': None, 'parcel': [],
-                          'archive_url': 'http://archive.cloudera.com'}
+                          'api_version': API_CURRENT_VERSION, 'host_names': None, 'license_file': None,
+                          'parcel': [], 'archive_url': 'http://archive.cloudera.com'}
 
     cmx_config_options.update({'kerberos': {'kdc_host': None, 'security_realm': None,
                                             'kdc_user': None, 'kdc_password': None}})
@@ -1576,7 +1582,9 @@ def parse_options():
             _cdh_repo = urllib2.urlopen("%s/cdh5/parcels/" % cmx_config_options["archive_url"]).read()
             _cdh_ver = [link.replace('/', '') for link in re.findall(r"<a.*?\s*href=\".*?\".*?>(.*?)</a>", _cdh_repo)
                         if link not in ['Name', 'Last modified', 'Size', 'Description', 'Parent Directory']]
+            cmx_config_options[option.dest] = value
             if value not in _cdh_ver:
+                print "Invalid CDH version: %s" % value
                 exit(1)
         else:
             cmx_config_options[option.dest] = value
@@ -1770,7 +1778,8 @@ if __name__ == "__main__":
     main()
 
     # def setup_template():
-    #     api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password)
+    #     api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
+    #                       version=cmx.api_version)
     #     cluster = api.get_cluster(cmx.cluster_name)
     #     service_type = ""
     #     if cdh.get_service_type(service_type) is None:
