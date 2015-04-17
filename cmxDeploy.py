@@ -1692,8 +1692,8 @@ def main():
 
     # Example CM API to setup Cloudera Manager Management services - not installing 'ACTIVITYMONITOR'
     # Skip MGMT role installation if amon_password and rman_password password are False
+    mgmt_roles = ['SERVICEMONITOR', 'ALERTPUBLISHER', 'EVENTSERVER', 'HOSTMONITOR']
     if cmx.amon_password and cmx.rman_password:
-        mgmt_roles = ['SERVICEMONITOR', 'ALERTPUBLISHER', 'EVENTSERVER', 'HOSTMONITOR']
         if management.licensed():
             mgmt_roles.append('REPORTSMANAGER')
         management(*mgmt_roles).setup()
@@ -1705,8 +1705,8 @@ def main():
         # Upload license or Begin Trial
         if cmx.license_file:
             management.upload_license()
-        # _OR_
-        # begin_trial()
+            # _OR_
+            # begin_trial()
 
     # Step-Through - Setup services in order of service dependencies
     # Zookeeper, hdfs, HBase, Solr, Spark, Yarn,
@@ -1749,12 +1749,13 @@ def main():
     # eg: "STOP" Services or "START"
     cdh('HBASE', 'IMPALA', 'SPARK', 'SOLR', 'FLUME').stop()
 
-    # Example restarting Management Service
-    # management_role.restart_management()
-    # or Restart individual Management Roles
-    management(*mgmt_roles).restart()
-    # Stop REPORTSMANAGER Management Role
-    management("REPORTSMANAGER").stop()
+    if cmx.amon_password and cmx.rman_password:
+        # Example restarting Management Service
+        # management_role.restart_management()
+        # or Restart individual Management Roles
+        management(*mgmt_roles).restart()
+        # Stop REPORTSMANAGER Management Role
+        management("REPORTSMANAGER").stop()
 
     # Example setup Sentry
     # setup_sentry()
