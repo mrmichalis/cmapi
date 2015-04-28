@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0629'
+__version__ = '0.13.0630'
 
 import socket
 import re
@@ -13,6 +13,7 @@ import sys
 import random
 
 from cm_api.api_client import ApiResource, ApiException, API_CURRENT_VERSION
+from cm_api.http_client import HttpClient, RestException
 from cm_api.endpoints.hosts import *
 from cm_api.endpoints.services import ApiServiceSetupInfo, ApiService
 
@@ -1549,7 +1550,7 @@ def parse_options():
     cmx_config_options = {'ssh_root_password': None, 'ssh_root_user': 'root', 'ssh_private_key': None,
                           'cluster_name': 'Cluster 1', 'cluster_version': 'CDH5',
                           'username': 'admin', 'password': 'admin', 'cm_server': None,
-                          'api_version': API_CURRENT_VERSION, 'host_names': None, 'license_file': None,
+                          'host_names': None, 'license_file': None,
                           'parcel': [], 'archive_url': 'http://archive.cloudera.com'}
 
     cmx_config_options.update({'kerberos': {'kdc_host': None, 'security_realm': None,
@@ -1570,6 +1571,11 @@ def parse_options():
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             cmx_config_options[option.dest] = socket.gethostbyname(value) if \
                 hostname_resolves(value) else exit(1)
+            api_version = get_cm_api_version(cmx_config_options[option.dest],
+                                             cmx_config_options['username'],
+                                             cmx_config_options['password'])
+            print "CM API version: %s" % api_version
+            cmx_config_options.update({'api_version': api_version})
             if not s.connect_ex((socket.gethostbyname(value), 7180)) == 0:
                 print "Cloudera Manager Server is not started on %s " % value
                 s.close()
@@ -1607,6 +1613,21 @@ def parse_options():
         except socket.error:
             print "Error 'host': '%s'" % hostname
             return False
+
+    def get_cm_api_version(cm_server, username, password):
+        """
+        Get supported API version from CM
+        :param cm_server:
+        :param username:
+        :param password:
+        :return version:
+        """
+        base_url = "%s://%s:%s/api" % ("http", cm_server, 7180)
+        client = HttpClient(base_url, exc_class=ApiException)
+        client.set_basic_auth(username, password, "Cloudera Manager")
+        client.set_headers({ "Content-Type": "application/json"})
+        return client.execute("GET", "/version").read().strip('v')
+
 
     parser = OptionParser()
     parser.add_option('-d', '--teardown', dest='teardown', action="store", type="string",
