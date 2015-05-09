@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0630'
+__version__ = '0.13.0631'
 
 import socket
 import re
@@ -1517,11 +1517,9 @@ class ActiveCommands:
         _bar = ['[|]', '[/]', '[-]', '[\\]']
         while True:
             if self._api.get("/commands/%s" % command.id)['active']:
-                sys.stdout.write(_bar[_state] + ' ' + message + ' ' + ('\b' * (len(message) + 5)))
+                sys.stdout.write(_bar[_state % 4] + ' ' + message + ' ' + ('\b' * (len(message) + 5)))
                 sys.stdout.flush()
                 _state += 1
-                if _state > 3:
-                    _state = 0
                 time.sleep(0.5)
             else:
                 print "\n [%s] %s" % (command.id, self._api.get("/commands/%s" % command.id)['resultMessage'])
@@ -1556,6 +1554,7 @@ def parse_options():
     cmx_config_options.update({'kerberos': {'kdc_host': None, 'security_realm': None,
                                             'kdc_user': None, 'kdc_password': None}})
 
+    # TODO: from CM 5.4+ we specify CDH version or {latest_supported} rather than using 'latest'
     cmx_config_options.update({'cdh_version': 'latest'})
 
     def cmx_args(option, opt_str, value, *args, **kwargs):
