@@ -56,8 +56,7 @@ Options:
                         CDH Services in CM_SERVER add the host to this list.
 ```
 ## References
+https://github.com/cloudera/cm_api/tree/master/python/examples
 https://raw.githubusercontent.com/justinhayes/cm_api/master/python/examples/auto-deploy/deploycloudera.py
-
 https://github.com/eBay/hadrian
-
 ----
