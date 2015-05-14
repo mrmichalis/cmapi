@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0631'
+__version__ = '0.13.0632'
 
 import socket
 import re
@@ -1554,8 +1554,8 @@ def parse_options():
     cmx_config_options.update({'kerberos': {'kdc_host': None, 'security_realm': None,
                                             'kdc_user': None, 'kdc_password': None}})
 
-    # TODO: from CM 5.4+ we specify CDH version or {latest_supported} rather than using 'latest'
-    cmx_config_options.update({'cdh_version': 'latest'})
+    # from CM 5.4+ we specify 'latest' CDH version with {latest_supported}
+    cmx_config_options.update({'cdh_version': '{latest_supported}'})
 
     def cmx_args(option, opt_str, value, *args, **kwargs):
         if option.dest == 'host_names':
