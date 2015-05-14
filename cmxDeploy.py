@@ -1554,9 +1554,6 @@ def parse_options():
     cmx_config_options.update({'kerberos': {'kdc_host': None, 'security_realm': None,
                                             'kdc_user': None, 'kdc_password': None}})
 
-    # from CM 5.4+ we specify 'latest' CDH version with {latest_supported}
-    cmx_config_options.update({'cdh_version': '{latest_supported}'})
-
     def cmx_args(option, opt_str, value, *args, **kwargs):
         if option.dest == 'host_names':
             print "switch %s value check: %s" % (opt_str, value)
@@ -1570,15 +1567,25 @@ def parse_options():
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             cmx_config_options[option.dest] = socket.gethostbyname(value) if \
                 hostname_resolves(value) else exit(1)
+
+            if not s.connect_ex((socket.gethostbyname(value), 7180)) == 0:
+                print "Cloudera Manager Server is not started on %s " % value
+                s.close()
+                exit(1)
+
+            # Determine the CM API version
             api_version = get_cm_api_version(cmx_config_options[option.dest],
                                              cmx_config_options['username'],
                                              cmx_config_options['password'])
             print "CM API version: %s" % api_version
             cmx_config_options.update({'api_version': api_version})
-            if not s.connect_ex((socket.gethostbyname(value), 7180)) == 0:
-                print "Cloudera Manager Server is not started on %s " % value
-                s.close()
-                exit(1)
+
+            # from CM 5.4+ API v10 we specify 'latest' CDH version with {latest_supported}
+            if int(cmx_config_options['api_version'].strip("v")) >= 10:
+                cmx_config_options.update({'cdh_version': '{latest_supported}'})
+            else:
+                cmx_config_options.update({'cdh_version': 'latest'})
+
         elif option.dest == 'ssh_private_key':
             with open(value, 'r') as f:
                 cmx_config_options[option.dest] = f.read()
