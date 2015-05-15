@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0632'
+__version__ = '0.13.0633'
 
 import socket
 import re
@@ -1582,7 +1582,7 @@ def parse_options():
 
             # from CM 5.4+ API v10 we specify 'latest' CDH version with {latest_supported}
             if int(cmx_config_options['api_version'].strip("v")) >= 10:
-                cmx_config_options.update({'cdh_version': '{latest_supported}'})
+                cmx_config_options.update({'cdh_version': '5'})
             else:
                 cmx_config_options.update({'cdh_version': 'latest'})
 
