@@ -40,11 +40,13 @@ def init_cluster():
 
     # Install CDH5 latest version
     cdh5_url = "%s/cdh5/parcels/%s" % (cmx.archive_url, cmx.cdh_version)
+    print "CDH5 Parcel URL: %s" % cdh5_url
     cmx.parcel.append(manifest_to_dict(cdh5_url + "/manifest.json"))
 
     # Install GPLEXTRAS5 to match CDH5 version
     gpl_extras_url = '%s/gplextras5/parcels/%s' % \
                      (cmx.archive_url, cmx.parcel[0]['version'].split('-')[0])
+    print "GPL Extras parcel URL: %s" % gpl_extras_url
     cmx.parcel.append(manifest_to_dict(gpl_extras_url + "/manifest.json"))
 
     cm.update_config({"REMOTE_PARCEL_REPO_URLS": "http://archive.cloudera.com/impala/parcels/latest/,"
