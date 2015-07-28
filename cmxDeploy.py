@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0633'
+__version__ = '0.13.0634'
 
 import socket
 import re
@@ -1731,11 +1731,11 @@ def main():
         # "STOP" Management roles
         # management_roles(*mgmt_services).stop()
 
-        # Upload license or Begin Trial
+        # Upload license
         if cmx.license_file:
             management.upload_license()
-        # _OR_
-        # begin_trial()
+    # Begin Trial
+    # management.begin_trial()
 
     # Step-Through - Setup services in order of service dependencies
     # Zookeeper, hdfs, HBase, Solr, Spark, Yarn,
