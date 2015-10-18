@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0634'
+__version__ = '0.13.0635'
 
 import socket
 import re
@@ -122,57 +122,35 @@ def host_rack():
     cluster.add_hosts(hosts)
 
 
-def deploy_parcel(parcel_product, parcel_version):
-    """
-    Deploy parcels
-    :return:
-    """
+def _check_parcel_stage(parcel_item, expected_stage, action_description):
+    # def wait_for_parcel_stage(cluster, parcel, wanted_stages, action_description):
     api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
     cluster = api.get_cluster(cmx.cluster_name)
-    parcel = cluster.get_parcel(parcel_product, parcel_version)
-    if parcel.stage != 'ACTIVATED':
-        print "> Deploying parcel: [ %s-%s ]" % (parcel_product, parcel_version)
-        parcel.start_download()
-        # unlike other commands, check progress by looking at parcel stage and status
-        while True:
-            parcel = cluster.get_parcel(parcel_product, parcel_version)
-            if parcel.stage == 'DISTRIBUTED' or parcel.stage == 'DOWNLOADED' or parcel.stage == 'ACTIVATED':
-                break
-            if parcel.state.errors:
-                raise Exception(str(parcel.state.errors))
-            msg = " [%s: %s / %s]" % (parcel.stage, parcel.state.progress, parcel.state.totalProgress)
-            sys.stdout.write(msg + " " * (78 - len(msg)) + "\r")
-            sys.stdout.flush()
 
-        print ""
-        print "1. Parcel Stage: %s" % parcel.stage
-        parcel.start_distribution()
+    while True:
+        cdh_parcel = cluster.get_parcel(product=parcel_item['product'], version=parcel_item['version'])
+        if cdh_parcel.stage in expected_stage:
+            break
+        if cdh_parcel.state.errors:
+            raise Exception(str(cdh_parcel.state.errors))
 
-        while True:
-            parcel = cluster.get_parcel(parcel_product, parcel_version)
-            if parcel.stage == 'DISTRIBUTED' or parcel.stage == 'ACTIVATED':
-                break
-            if parcel.state.errors:
-                raise Exception(str(parcel.state.errors))
-            msg = " [%s: %s / %s]" % (parcel.stage, parcel.state.progress, parcel.state.totalProgress)
-            sys.stdout.write(msg + " " * (78 - len(msg)) + "\r")
-            sys.stdout.flush()
+        msg = " [%s: %s / %s]" % (cdh_parcel.stage, cdh_parcel.state.progress, cdh_parcel.state.totalProgress)
+        sys.stdout.write(msg + " " * (78 - len(msg)) + "\r")
+        sys.stdout.flush()
+        time.sleep(1)
 
-        print "2. Parcel Stage: %s" % parcel.stage
-        if parcel.stage == 'DISTRIBUTED':
-            parcel.activate()
 
-        while True:
-            parcel = cluster.get_parcel(parcel_product, parcel_version)
-            if parcel.stage != 'ACTIVATED':
-                msg = " [%s: %s / %s]" % (parcel.stage, parcel.state.progress, parcel.state.totalProgress)
-                sys.stdout.write(msg + " " * (78 - len(msg)) + "\r")
-                sys.stdout.flush()
-            elif parcel.state.errors:
-                raise Exception(str(parcel.state.errors))
-            else:
-                print "3. Parcel Stage: %s" % parcel.stage
-                break
+def parcel_action(parcel_item, function, expected_stage, action_description):
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
+    cluster = api.get_cluster(cmx.cluster_name)
+    print "%s [%s-%s]" % (action_description, parcel_item['product'], parcel_item['version'])
+    cdh_parcel = cluster.get_parcel(product=parcel_item['product'], version=parcel_item['version'])
+
+    cmd = getattr(cdh_parcel, function)()
+    if not cmd.success:
+        print "ERROR: %s failed!" % action_description
+        exit(0)
+    return _check_parcel_stage(parcel_item, expected_stage, action_description)
 
 
 def setup_zookeeper():
@@ -191,7 +169,7 @@ def setup_zookeeper():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
         service.update_config({"zookeeper_datadir_autocreate": False})
 
         # Role Config Group equivalent to Service Default Group
@@ -224,7 +202,7 @@ def setup_hdfs():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service_config = cdh.dependencies_for(service)
@@ -266,7 +244,7 @@ def setup_hdfs():
                 rcg.update_config({"dfs_client_use_trash": True})
 
         for role_type in ['DATANODE', 'GATEWAY']:
-            for host in management.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
+            for host in manager.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
                 cdh.create_service_role(service, role_type, host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -297,7 +275,7 @@ def setup_hbase():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -306,7 +284,7 @@ def setup_hbase():
             cdh.create_service_role(service, role_type, random.choice(hosts))
 
         for role_type in ['GATEWAY', 'REGIONSERVER']:
-            for host in management.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
+            for host in manager.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
                 cdh.create_service_role(service, role_type, host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -334,7 +312,7 @@ def setup_solr():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -344,7 +322,7 @@ def setup_solr():
             if rcg.roleType == "SOLR_SERVER":
                 cdh.create_service_role(service, rcg.roleType, [x for x in hosts if x.id == 0][0])
             if rcg.roleType == "GATEWAY":
-                for host in management.get_hosts(include_cm_host=True):
+                for host in manager.get_hosts(include_cm_host=True):
                     cdh.create_service_role(service, rcg.roleType, host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -373,7 +351,7 @@ def setup_ks_indexer():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -409,7 +387,7 @@ def setup_spark():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -418,7 +396,7 @@ def setup_spark():
         cdh.create_service_role(service, "SPARK_HISTORY_SERVER", random.choice(hosts))
 
         for role_type in ['GATEWAY', 'SPARK_WORKER']:
-            for host in management.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
+            for host in manager.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
                 cdh.create_service_role(service, role_type, host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -449,14 +427,14 @@ def setup_spark_on_yarn():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
 
         cdh.create_service_role(service, "SPARK_YARN_HISTORY_SERVER", random.choice(hosts))
 
-        for host in management.get_hosts(include_cm_host=True):
+        for host in manager.get_hosts(include_cm_host=True):
             cdh.create_service_role(service, "GATEWAY", host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -490,7 +468,7 @@ def setup_yarn():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -517,7 +495,7 @@ def setup_yarn():
             if rcg.roleType == "GATEWAY":
                 # yarn-GATEWAY - Default Group
                 rcg.update_config({"mapred_reduce_tasks": "505413632", "mapred_submit_replication": "3"})
-                for host in management.get_hosts(include_cm_host=True):
+                for host in manager.get_hosts(include_cm_host=True):
                     cdh.create_service_role(service, rcg.roleType, host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -544,7 +522,7 @@ def setup_mapreduce():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -564,14 +542,14 @@ def setup_mapreduce():
                 rcg.update_config({"mapred_reduce_tasks": "1", "mapred_submit_replication": "1"})
 
         for role_type in ['GATEWAY', 'TASKTRACKER']:
-            for host in management.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
+            for host in manager.get_hosts(include_cm_host=(role_type == 'GATEWAY')):
                 cdh.create_service_role(service, role_type, host)
 
-        # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
-        # cdh.deploy_client_config_for(service)
+                # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
+                # cdh.deploy_client_config_for(service)
 
-        # This service is started later on
-        # check.status_for_command("Starting MapReduce Service", service.start())
+                # This service is started later on
+                # check.status_for_command("Starting MapReduce Service", service.start())
 
 
 def setup_hive():
@@ -593,7 +571,7 @@ def setup_hive():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         # hive_metastore_database_host: Assuming embedded DB is running from where embedded-db is located.
@@ -609,7 +587,7 @@ def setup_hive():
         for role_type in ['HIVEMETASTORE', 'HIVESERVER2']:
             cdh.create_service_role(service, role_type, random.choice(hosts))
 
-        for host in management.get_hosts(include_cm_host=True):
+        for host in manager.get_hosts(include_cm_host=True):
             cdh.create_service_role(service, "GATEWAY", host)
 
         # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
@@ -639,7 +617,7 @@ def setup_sqoop():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -651,8 +629,8 @@ def setup_sqoop():
         vc = lambda v: tuple(map(int, (v.split("."))))
         if vc(cmx.parcel[0]['version'].split('-')[0]) >= vc("5.3.0"):
             check.status_for_command("Creating Sqoop 2 Database", service._cmd('SqoopCreateDatabase'))
-        # This service is started later on
-        # check.status_for_command("Starting Sqoop 2 Service", service.start())
+            # This service is started later on
+            # check.status_for_command("Starting Sqoop 2 Service", service.start())
 
 
 def setup_sqoop_client():
@@ -674,11 +652,11 @@ def setup_sqoop_client():
         # Service-Wide
         service.update_config({})
 
-        for host in management.get_hosts(include_cm_host=True):
+        for host in manager.get_hosts(include_cm_host=True):
             cdh.create_service_role(service, "GATEWAY", host)
 
-        # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
-        # cdh.deploy_client_config_for(service)
+            # Example of deploy_client_config. Recommended to Deploy Cluster wide client config.
+            # cdh.deploy_client_config_for(service)
 
 
 def setup_impala():
@@ -697,7 +675,7 @@ def setup_impala():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -745,7 +723,7 @@ def setup_oozie():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -760,6 +738,34 @@ def setup_oozie():
         check.status_for_command("Installing Oozie ShareLib in HDFS", service.install_oozie_sharelib())
         # This service is started later on
         # check.status_for_command("Starting Oozie Service", service.start())
+
+
+def setup_oozie_ha(load_balancer_host_port):
+    """
+    Setup oozie-ha
+    :return:
+    """
+    # TODO: test setup_oozie_ha
+    print "> Setup OOZIE-HA"
+    service = cdh.get_service_type('OOZIE')
+    # pre-requisites
+    service.update_config({"oozie_load_balancer": load_balancer_host_port})
+    rcg = service.get_role_config_group("{0}-OOZIE_SERVER-BASE".format(service.name))
+    # CM5.4/OPSAPS-25778
+    rcg.update_config({"oozie_plugins_list": "org.apache.oozie.service.ZKLocksService,"
+                                             "org.apache.oozie.service.ZKXLogStreamingService,"
+                                             "org.apache.oozie.service.ZKJobsConcurrencyService,"
+                                             "org.apache.oozie.service.ZKUUIDService"})
+
+    if len(service.get_roles_by_type("OOZIE_SERVER")) != 2:
+        # Choose random node for the second Oozie Server
+        hosts = manager.get_hosts()
+        rnd_host = random.choice([x.hostId for x in hosts if x.hostId
+                                  is not service.get_roles_by_type("OOZIE_SERVER")[0].hostRef.hostId])
+
+        cmd = service.enable_oozie_ha(rnd_host.hostRef.hostId)
+        check.status_for_command("Enable YARN-HA - [ http://%s:7180/cmf/command/%s/details ]" %
+                                 (socket.getfqdn(cmx.cm_server), cmd.id), cmd)
 
 
 def setup_hue():
@@ -777,7 +783,7 @@ def setup_hue():
         print "Create %s service" % service_name
         cluster.create_service(service_name, service_type)
         service = cluster.get_service(service_name)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
@@ -787,8 +793,8 @@ def setup_hue():
             if rcg.roleType == "HUE_SERVER":
                 rcg.update_config({})
                 cdh.create_service_role(service, "HUE_SERVER", [x for x in hosts if x.id == 0][0])
-        # This service is started later on
-        # check.status_for_command("Starting Hue Service", service.start())
+                # This service is started later on
+                # check.status_for_command("Starting Hue Service", service.start())
 
 
 def setup_flume():
@@ -802,7 +808,7 @@ def setup_flume():
 
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
         cdh.create_service_role(service, "AGENT", [x for x in hosts if x.id == 0][0])
         # This service is started later on
         # check.status_for_command("Starting Flume Agent", service.start())
@@ -820,7 +826,7 @@ def setup_hdfs_ha():
         # Requirement Hive/Hue
         hive = cdh.get_service_type('HIVE')
         hue = cdh.get_service_type('HUE')
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         if len(hdfs.get_roles_by_type("NAMENODE")) != 2:
             # QJM require 3 nodes
@@ -902,7 +908,7 @@ def enable_kerberos():
     hdfs = cdh.get_service_type('HDFS')
     zookeeper = cdh.get_service_type('ZOOKEEPER')
     hue = cdh.get_service_type('HUE')
-    hosts = management.get_hosts()
+    hosts = manager.get_hosts()
 
     check.status_for_command("Import Admin Credentials",
                              cm.import_admin_credentials(username=str(cmx.kerberos['kdc_user']),
@@ -994,7 +1000,7 @@ def setup_sentry():
 
         service_config.update(cdh.dependencies_for(service))
         service.update_config(service_config)
-        hosts = management.get_hosts()
+        hosts = manager.get_hosts()
 
         cdh.create_service_role(service, "SENTRY_SERVER", random.choice(hosts))
         check.status_for_command("Creating Sentry Database Tables", service.create_sentry_database_tables())
@@ -1071,6 +1077,18 @@ def teardown(keep_cluster=True):
                 service.delete_role(role.name)
 
             cluster.delete_service(service.name)
+
+        print "Deactivate and Un-Distribute CDH Parcel and GPL Extras Parcel"
+        for cdh_parcel in cluster.get_all_parcels():
+            if cdh_parcel.stage == 'ACTIVATED':
+                print "> Parcel action for parcel: [ %s-%s ]" % (cdh_parcel.product, cdh_parcel.version)
+                parcel_action(parcel_item={"product": cdh_parcel.product, "version": cdh_parcel.version},
+                              function="deactivate", expected_stage=['DISTRIBUTED'],
+                              action_description="Deactivate Parcel")
+                parcel_action(parcel_item={"product": cdh_parcel.product, "version": cdh_parcel.version},
+                              function="start_removal_of_distribution", expected_stage=['DOWNLOADED'],
+                              action_description="Un-Distribute Parcel")
+
     except ApiException as err:
         print err.message
         exit(1)
@@ -1085,34 +1103,6 @@ def teardown(keep_cluster=True):
 
     # cluster.remove_all_hosts()
     if not keep_cluster:
-        # Remove CDH Parcel and GPL Extras Parcel
-        for x in cmx.parcel:
-            print "Removing parcel: [ %s-%s ]" % (x['product'], x['version'])
-            parcel_product = x['product']
-            parcel_version = x['version']
-
-            while True:
-                parcel = cluster.get_parcel(parcel_product, parcel_version)
-                if parcel.stage == 'ACTIVATED':
-                    print "Deactivating parcel"
-                    parcel.deactivate()
-                else:
-                    break
-
-            while True:
-                parcel = cluster.get_parcel(parcel_product, parcel_version)
-                if parcel.stage == 'DISTRIBUTED':
-                    print "Executing parcel.start_removal_of_distribution()"
-                    parcel.start_removal_of_distribution()
-                    print "Executing parcel.remove_download()"
-                    parcel.remove_download()
-                elif parcel.stage == 'UNDISTRIBUTING':
-                    msg = " [%s: %s / %s]" % (parcel.stage, parcel.state.progress, parcel.state.totalProgress)
-                    sys.stdout.write(msg + " " * (78 - len(msg)) + "\r")
-                    sys.stdout.flush()
-                else:
-                    break
-
         print "Deleting cluster: %s" % cmx.cluster_name
         api.delete_cluster(cmx.cluster_name)
 
@@ -1124,6 +1114,7 @@ class ManagementActions:
     :param action:
     :return:
     """
+
     def __init__(self, *role_list):
         self._role_list = role_list
         self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
@@ -1160,7 +1151,7 @@ class ManagementActions:
         """
         print "> Setup Management Services"
         self._cm.update_config({"TSQUERY_STREAMS_LIMIT": 1000})
-        hosts = management.get_hosts(include_cm_host=True)
+        hosts = manager.get_hosts(include_cm_host=True)
         # pick hostId that match the ipAddress of cm_server
         # mgmt_host may be empty then use the 1st host from the -w
         try:
@@ -1195,11 +1186,11 @@ class ManagementActions:
                 group.update_config({})
             elif group.roleType == "SERVICEMONITOR":
                 group.update_config({})
-            elif group.roleType == "NAVIGATOR" and management.licensed():
+            elif group.roleType == "NAVIGATOR" and manager.licensed():
                 group.update_config({})
-            elif group.roleType == "NAVIGATORMETADATASERVER" and management.licensed():
+            elif group.roleType == "NAVIGATORMETADATASERVER" and manager.licensed():
                 group.update_config({})
-            elif group.roleType == "REPORTSMANAGER" and management.licensed():
+            elif group.roleType == "REPORTSMANAGER" and manager.licensed():
                 group.update_config({"headlamp_database_host": "%s:7432" % socket.getfqdn(cmx.cm_server),
                                      "headlamp_database_name": "rman",
                                      "headlamp_database_password": cmx.rman_password,
@@ -1229,15 +1220,15 @@ class ManagementActions:
         api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
                           version=cmx.api_version)
         cm = api.get_cloudera_manager()
-        if cmx.license_file and not management.licensed():
+        if cmx.license_file and not manager.licensed():
             print "Upload license"
             with open(cmx.license_file, 'r') as f:
                 license_contents = f.read()
                 print "Upload CM License: \n %s " % license_contents
                 cm.update_license(license_contents)
                 # REPORTSMANAGER required after applying license
-                management("REPORTSMANAGER").setup()
-                management("REPORTSMANAGER").start()
+                manager("REPORTSMANAGER").setup()
+                manager("REPORTSMANAGER").start()
 
     @classmethod
     def begin_trial(cls):
@@ -1248,12 +1239,12 @@ class ManagementActions:
         api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
                           version=cmx.api_version)
         print "def begin_trial"
-        if not management.licensed():
+        if not manager.licensed():
             try:
                 api.post("/cm/trial/begin")
                 # REPORTSMANAGER required after applying license
-                management("REPORTSMANAGER").setup()
-                management("REPORTSMANAGER").start()
+                manager("REPORTSMANAGER").setup()
+                manager("REPORTSMANAGER").start()
             except ApiException as err:
                 print err.message
 
@@ -1338,6 +1329,7 @@ class ServiceActions:
     :param action:
     :return:
     """
+
     def __init__(self, *service_list):
         self._service_list = service_list
         self._api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password,
@@ -1545,7 +1537,7 @@ class ActiveCommands:
 
 def parse_options():
     global cmx
-    global check, cdh, management
+    global check, cdh, manager
 
     cmx_config_options = {'ssh_root_password': None, 'ssh_root_user': 'root', 'ssh_private_key': None,
                           'cluster_name': 'Cluster 1', 'cluster_version': 'CDH5',
@@ -1633,9 +1625,8 @@ def parse_options():
         base_url = "%s://%s:%s/api" % ("http", cm_server, 7180)
         client = HttpClient(base_url, exc_class=ApiException)
         client.set_basic_auth(username, password, "Cloudera Manager")
-        client.set_headers({ "Content-Type": "application/json"})
+        client.set_headers({"Content-Type": "application/json"})
         return client.execute("GET", "/version").read().strip('v')
-
 
     parser = OptionParser()
     parser.add_option('-d', '--teardown', dest='teardown', action="store", type="string",
@@ -1679,14 +1670,14 @@ def parse_options():
             parser.error(msg_req_args + "-p/--ssh-root-password _OR_ -k/--ssh-private-key")
 
     # Management services password. They are required when adding Management services
-    management = ManagementActions
-    if not (bool(management.get_mgmt_password("ACTIVITYMONITOR"))
-            and bool(management.get_mgmt_password("REPORTSMANAGER"))):
-        cmx_config_options['amon_password'] = bool(management.get_mgmt_password("ACTIVITYMONITOR"))
-        cmx_config_options['rman_password'] = bool(management.get_mgmt_password("REPORTSMANAGER"))
+    manager = ManagementActions
+    if not (bool(manager.get_mgmt_password("ACTIVITYMONITOR"))
+            and bool(manager.get_mgmt_password("REPORTSMANAGER"))):
+        cmx_config_options['amon_password'] = bool(manager.get_mgmt_password("ACTIVITYMONITOR"))
+        cmx_config_options['rman_password'] = bool(manager.get_mgmt_password("REPORTSMANAGER"))
     else:
-        cmx_config_options['amon_password'] = management.get_mgmt_password("ACTIVITYMONITOR")
-        cmx_config_options['rman_password'] = management.get_mgmt_password("REPORTSMANAGER")
+        cmx_config_options['amon_password'] = manager.get_mgmt_password("ACTIVITYMONITOR")
+        cmx_config_options['rman_password'] = manager.get_mgmt_password("REPORTSMANAGER")
 
     cmx = type('', (), cmx_config_options)
     check = ActiveCommands()
@@ -1715,25 +1706,33 @@ def main():
     # 4. Deploy latest parcels into : 'Cluster 1'
     init_cluster()
     add_hosts_to_cluster()
-    # Deploy CDH Parcel
-    deploy_parcel(parcel_product=cmx.parcel[0]['product'],
-                  parcel_version=cmx.parcel[0]['version'])
+    # Deploy CDH Parcel and GPL Extra Parcel
+    for cdh_parcel in cmx.parcel:
+        print "> Parcel action for parcel: [ %s-%s ]" % (cdh_parcel['product'], cdh_parcel['version'])
+        parcel_action(parcel_item=cdh_parcel, function="start_removal_of_distribution",
+                      expected_stage=['DOWNLOADED', 'AVAILABLE_REMOTELY', 'ACTIVATING'],
+                      action_description="Un-Distribute Parcel")
+        parcel_action(parcel_item=cdh_parcel, function="start_download",
+                      expected_stage=['DOWNLOADED'], action_description="Download Parcel")
+        parcel_action(parcel_item=cdh_parcel, function="start_distribution", expected_stage=['DISTRIBUTED'],
+                      action_description="Distribute Parcel")
+        parcel_action(parcel_item=cdh_parcel, function="activate", expected_stage=['ACTIVATED'],
+                      action_description="Activate Parcel")
 
-    # Example CM API to setup Cloudera Manager Management services - not installing 'ACTIVITYMONITOR'
     # Skip MGMT role installation if amon_password and rman_password password are False
     mgmt_roles = ['SERVICEMONITOR', 'ALERTPUBLISHER', 'EVENTSERVER', 'HOSTMONITOR']
     if cmx.amon_password and cmx.rman_password:
-        if management.licensed():
+        if manager.licensed():
             mgmt_roles.append('REPORTSMANAGER')
-        management(*mgmt_roles).setup()
+        manager(*mgmt_roles).setup()
         # "START" Management roles
-        management(*mgmt_roles).start()
+        manager(*mgmt_roles).start()
         # "STOP" Management roles
         # management_roles(*mgmt_services).stop()
 
         # Upload license
         if cmx.license_file:
-            management.upload_license()
+            manager.upload_license()
     # Begin Trial
     # management.begin_trial()
 
@@ -1768,8 +1767,8 @@ def main():
     # setup_yarn_ha()
 
     # Deploy GPL Extra Parcel
-    deploy_parcel(parcel_product=cmx.parcel[1]['product'],
-                  parcel_version=cmx.parcel[1]['version'])
+    # deploy_parcel(parcel_product=cmx.parcel[1]['product'],
+    #               parcel_version=cmx.parcel[1]['version'])
 
     # Restart Cluster and Deploy Cluster wide client config
     cdh.restart_cluster()
@@ -1782,9 +1781,9 @@ def main():
         # Example restarting Management Service
         # management_role.restart_management()
         # or Restart individual Management Roles
-        management(*mgmt_roles).restart()
+        manager(*mgmt_roles).restart()
         # Stop REPORTSMANAGER Management Role
-        management("REPORTSMANAGER").stop()
+        manager("REPORTSMANAGER").stop()
 
     # Example setup Sentry
     # setup_sentry()
