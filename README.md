@@ -13,7 +13,7 @@ You have a running Cloudera Manager Server with embedded database started-up. Yo
 ``` bash
 sudo yum install -y git python-setuptools
 sudo easy_install pip
-sudo git clone https://github.com/cloudera/cm_api.git -b cm5-5.4 $HOME/cm_api && sudo pip install $HOME/cm_api/python
+sudo git clone https://github.com/cloudera/cm_api.git -b cm5-5.5.0 $HOME/cm_api && sudo pip install $HOME/cm_api/python
 sudo curl -L https://raw.githubusercontent.com/gdgt/cmapi/master/bootstrap-cm.sh | sudo bash
 sudo curl -L https://raw.githubusercontent.com/gdgt/cmapi/master/cmxDeploy.py -o $HOME/cmxDeploy.py && sudo chmod +x $HOME/cmxDeploy.py
 sudo python $HOME/cmxDeploy.py -u "root" -p "cloudera" -m "cm-ip" -w "ip1,ip2,ip3,..."
