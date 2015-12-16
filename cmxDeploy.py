@@ -835,13 +835,13 @@ def setup_accumulo():
         hosts = manager.get_hosts()
 
         # Deploy ACCUMULO16 Parcel
-        parcel = [parcel for parcel in cluster.get_all_parcels() if parcel.product == 'ACCUMULO' and
-                  'cdh5' in parcel.version][0]
+        parcel = [x for x in cluster.get_all_parcels() if x.product == 'ACCUMULO' and
+                  'cdh5' in x.version][0]
 
         accumulo_parcel = {'product': str(parcel.product.upper()), 'version': str(parcel.version).lower()}
         print "> Parcel action for parcel: [ %s-%s ]" % (parcel.product, parcel.version)
-        parcel = cluster.get_parcel(product=parcel.product, version=parcel.version)
-        if "ACTIVATED" not in parcel.stage:
+        cluster_parcel = cluster.get_parcel(product=parcel.product, version=parcel.version)
+        if "ACTIVATED" not in cluster_parcel.stage:
             parcel_action(parcel_item=accumulo_parcel, function="start_removal_of_distribution",
                           expected_stage=['DOWNLOADED', 'AVAILABLE_REMOTELY', 'ACTIVATING'],
                           action_description="Un-Distribute Parcel")
@@ -855,12 +855,12 @@ def setup_accumulo():
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
 
-        # Crete the Accumulo roles
+        # Create Accumulo roles
         for role_type in ['ACCUMULO16_MASTER', 'ACCUMULO16_TRACER', 'ACCUMULO16_GC',
                           'ACCUMULO16_TSERVER', 'ACCUMULO16_MONITOR']:
             cdh.create_service_role(service, role_type, random.choice(hosts))
 
-        # Crete the Accumulo Gateway roles
+        # Create Accumulo gateway roles
         for host in manager.get_hosts(include_cm_host=True):
             cdh.create_service_role(service, 'GATEWAY', host)
 
