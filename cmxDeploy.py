@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0635'
+__version__ = '0.13.0700'
 
 import socket
 import re
@@ -53,7 +53,6 @@ def init_cluster():
                                                  "http://archive.cloudera.com/search/parcels/latest/,"
                                                  "http://archive.cloudera.com/spark/parcels/latest/,"
                                                  "http://archive.cloudera.com/sqoop-connectors/parcels/latest/,"
-                                                 "http://archive.cloudera.com/accumulo/parcels/latest/,"
                                                  "http://archive.cloudera.com/accumulo-c5/parcels/latest,"
                                                  "%s,%s" % (cdh5_url, gpl_extras_url),
                       "PHONE_HOME": False, "PARCEL_DISTRIBUTE_RATE_LIMIT_KBS_PER_SECOND": "102400"})
@@ -814,6 +813,68 @@ def setup_flume():
         # check.status_for_command("Starting Flume Agent", service.start())
 
 
+def setup_accumulo():
+    """
+    Accumulo 1.6
+    > Deploy Client Configuration
+    > Create Accumulo Home Dir on service Accumulo 1.6
+    > Create Accumulo User Dir on service Accumulo 1.6
+    > Initialize Accumulo on service Accumulo 1.6
+    Start Accumulo 1.6
+    :return:
+    """
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
+    cluster = api.get_cluster(cmx.cluster_name)
+    service_type = "ACCUMULO16"
+    if cdh.get_service_type(service_type) is None:
+        print "> %s" % service_type
+        service_name = "accumulo16"
+        print "Create %s service" % service_name
+        cluster.create_service(service_name, service_type)
+        service = cluster.get_service(service_name)
+        hosts = manager.get_hosts()
+
+        # Deploy ACCUMULO16 Parcel
+        parcel = [parcel for parcel in cluster.get_all_parcels() if parcel.product == 'ACCUMULO' and
+                  'cdh5' in parcel.version][0]
+
+        accumulo_parcel = {'product': str(parcel.product.upper()), 'version': str(parcel.version).lower()}
+        print "> Parcel action for parcel: [ %s-%s ]" % (parcel.product, parcel.version)
+        parcel = cluster.get_parcel(product=parcel.product, version=parcel.version)
+        if "ACTIVATED" not in parcel.stage:
+            parcel_action(parcel_item=accumulo_parcel, function="start_removal_of_distribution",
+                          expected_stage=['DOWNLOADED', 'AVAILABLE_REMOTELY', 'ACTIVATING'],
+                          action_description="Un-Distribute Parcel")
+            parcel_action(parcel_item=accumulo_parcel, function="start_download",
+                          expected_stage=['DOWNLOADED'], action_description="Download Parcel")
+            parcel_action(parcel_item=accumulo_parcel, function="start_distribution", expected_stage=['DISTRIBUTED'],
+                          action_description="Distribute Parcel")
+            parcel_action(parcel_item=accumulo_parcel, function="activate", expected_stage=['ACTIVATED'],
+                          action_description="Activate Parcel")
+
+        # Service-Wide
+        service.update_config(cdh.dependencies_for(service))
+
+        # Crete the Accumulo roles
+        for role_type in ['ACCUMULO16_MASTER', 'ACCUMULO16_TRACER', 'ACCUMULO16_GC',
+                          'ACCUMULO16_TSERVER', 'ACCUMULO16_MONITOR']:
+            cdh.create_service_role(service, role_type, random.choice(hosts))
+
+        # Crete the Accumulo Gateway roles
+        for host in manager.get_hosts(include_cm_host=True):
+            cdh.create_service_role(service, 'GATEWAY', host)
+
+        print "Deploy Client Configuration"
+        cluster.deploy_client_config()
+        check.status_for_command("Execute command Create Accumulo Home Dir on service Accumulo 1.6",
+                                 service._cmd('CreateHdfsDirCommand'))
+        check.status_for_command("Execute command Create Accumulo User Dir on service Accumulo 1.6",
+                                 service._cmd('CreateAccumuloUserDirCommand'))
+        check.status_for_command("Execute command Initialize Accumulo on service Accumulo 1.6",
+                                 service._cmd('AccumuloInitServiceCommand'))
+        # check.status_for_command("Starting Accumulo Service", service.start())
+
+
 def setup_hdfs_ha():
     """
     Setup hdfs-ha
@@ -1456,7 +1517,7 @@ class ServiceActions:
         if service.type == 'HUE':
             dependency_list.extend(['hbase_service', 'solr_service', 'sqoop_service',
                                     'impala_service', 'hue_hbase_thrift'])
-        if service.type in ['HIVE', 'HDFS', 'HUE', 'OOZIE', 'MAPREDUCE', 'YARN']:
+        if service.type in ['HIVE', 'HDFS', 'HUE', 'OOZIE', 'MAPREDUCE', 'YARN', 'ACCUMULO16']:
             dependency_list.append('zookeeper_service')
         if service.type in ['HIVE']:
             dependency_list.append('sentry_service')
@@ -1464,7 +1525,7 @@ class ServiceActions:
             dependency_list.append('hive_service')
         if service.type in ['FLUME', 'IMPALA']:
             dependency_list.append('hbase_service')
-        if service.type in ['FLUME', 'SPARK', 'SENTRY']:
+        if service.type in ['FLUME', 'SPARK', 'SENTRY', 'ACCUMULO16']:
             dependency_list.append('hdfs_service')
         if service.type == 'FLUME':
             dependency_list.append('solr_service')
@@ -1706,18 +1767,23 @@ def main():
     # 4. Deploy latest parcels into : 'Cluster 1'
     init_cluster()
     add_hosts_to_cluster()
-    # Deploy CDH Parcel and GPL Extra Parcel
+
+    # Deploy CDH Parcel and GPL Extra Parcel skip if they are ACTIVATED
+    api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
+    cluster = api.get_cluster(cmx.cluster_name)
     for cdh_parcel in cmx.parcel:
         print "> Parcel action for parcel: [ %s-%s ]" % (cdh_parcel['product'], cdh_parcel['version'])
-        parcel_action(parcel_item=cdh_parcel, function="start_removal_of_distribution",
-                      expected_stage=['DOWNLOADED', 'AVAILABLE_REMOTELY', 'ACTIVATING'],
-                      action_description="Un-Distribute Parcel")
-        parcel_action(parcel_item=cdh_parcel, function="start_download",
-                      expected_stage=['DOWNLOADED'], action_description="Download Parcel")
-        parcel_action(parcel_item=cdh_parcel, function="start_distribution", expected_stage=['DISTRIBUTED'],
-                      action_description="Distribute Parcel")
-        parcel_action(parcel_item=cdh_parcel, function="activate", expected_stage=['ACTIVATED'],
-                      action_description="Activate Parcel")
+        parcel = cluster.get_parcel(product=cdh_parcel['product'], version=cdh_parcel['version'])
+        if "ACTIVATED" not in parcel.stage:
+            parcel_action(parcel_item=cdh_parcel, function="start_removal_of_distribution",
+                          expected_stage=['DOWNLOADED', 'AVAILABLE_REMOTELY', 'ACTIVATING'],
+                          action_description="Un-Distribute Parcel")
+            parcel_action(parcel_item=cdh_parcel, function="start_download",
+                          expected_stage=['DOWNLOADED'], action_description="Download Parcel")
+            parcel_action(parcel_item=cdh_parcel, function="start_distribution", expected_stage=['DISTRIBUTED'],
+                          action_description="Distribute Parcel")
+            parcel_action(parcel_item=cdh_parcel, function="activate", expected_stage=['ACTIVATED'],
+                          action_description="Activate Parcel")
 
     # Skip MGMT role installation if amon_password and rman_password password are False
     mgmt_roles = ['SERVICEMONITOR', 'ALERTPUBLISHER', 'EVENTSERVER', 'HOSTMONITOR']
@@ -1725,14 +1791,15 @@ def main():
         if manager.licensed():
             mgmt_roles.append('REPORTSMANAGER')
         manager(*mgmt_roles).setup()
-        # "START" Management roles
-        manager(*mgmt_roles).start()
         # "STOP" Management roles
         # management_roles(*mgmt_services).stop()
+        # "START" Management roles
+        manager(*mgmt_roles).start()
 
-        # Upload license
-        if cmx.license_file:
-            manager.upload_license()
+    # Upload license
+    if cmx.license_file:
+        manager.upload_license()
+
     # Begin Trial
     # management.begin_trial()
 
@@ -1742,6 +1809,7 @@ def main():
     setup_zookeeper()
     setup_hdfs()
     setup_hbase()
+    # setup_accumulo()
     # setup_solr()
     # setup_ks_indexer()
     setup_yarn()
@@ -1775,6 +1843,7 @@ def main():
 
     # Other examples of CM API
     # eg: "STOP" Services or "START"
+
     cdh('HBASE', 'IMPALA', 'SPARK', 'SOLR', 'FLUME').stop()
 
     if cmx.amon_password and cmx.rman_password:
