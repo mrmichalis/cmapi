@@ -658,11 +658,12 @@ def setup_sqoop_client():
             # cdh.deploy_client_config_for(service)
 
 
-def setup_impala():
+def setup_impala(enable_llama=False):
     """
     Impala
     > Creating Impala user directory
     Starting Impala Service
+    :param enable_llama:
     :return:
     """
     api = ApiResource(server_host=cmx.cm_server, username=cmx.username, password=cmx.password, version=cmx.api_version)
@@ -692,9 +693,10 @@ def setup_impala():
         # check.status_for_command("Starting Impala Service", service.start())
 
         # Enable YARN and Impala Integrated Resource Management
+        # http://www.cloudera.com/content/www/en-us/documentation/enterprise/latest/topics/admin_llama.html
         yarn = cdh.get_service_type('YARN')
-        if yarn is not None:
-            # enable Cgroup-based resource management for all hosts with NodeManager roles.
+        if yarn is not None and enable_llama is True:
+            # enable cgroup-based resource management for all hosts with NodeManager roles.
             cm = api.get_cloudera_manager()
             cm.update_all_hosts_config({"rm_enabled": True})
             yarn.update_config({"yarn_service_cgroups": True, "yarn_service_lce_always": True})
@@ -1820,7 +1822,7 @@ def main():
     setup_hive()
     setup_sqoop()
     setup_sqoop_client()
-    setup_impala()
+    setup_impala(enable_llama=False)
     setup_oozie()
     setup_hue()
 
