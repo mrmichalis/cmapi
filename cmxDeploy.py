@@ -402,11 +402,11 @@ def setup_spark():
         # cdh.deploy_client_config_for(service)
 
         check.status_for_command("Execute command CreateSparkUserDirCommand on service Spark",
-                                 service._cmd('CreateSparkUserDirCommand'))
+                                 service.service_command_by_name('CreateSparkUserDirCommand'))
         check.status_for_command("Execute command CreateSparkHistoryDirCommand on service Spark",
-                                 service._cmd('CreateSparkHistoryDirCommand'))
+                                 service.service_command_by_name('CreateSparkHistoryDirCommand'))
         check.status_for_command("Execute command SparkUploadJarServiceCommand on service Spark",
-                                 service._cmd('SparkUploadJarServiceCommand'))
+                                 service.service_command_by_name('SparkUploadJarServiceCommand'))
 
         # This service is started later on
         # check.status_for_command("Starting Spark Service", service.start())
