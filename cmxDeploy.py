@@ -440,11 +440,11 @@ def setup_spark_on_yarn():
         # cdh.deploy_client_config_for(service)
 
         check.status_for_command("Execute command CreateSparkUserDirCommand on service Spark",
-                                 service._cmd('CreateSparkUserDirCommand'))
+                                 service.status_for_command('CreateSparkUserDirCommand'))
         check.status_for_command("Execute command CreateSparkHistoryDirCommand on service Spark",
-                                 service._cmd('CreateSparkHistoryDirCommand'))
+                                 service.status_for_command('CreateSparkHistoryDirCommand'))
         check.status_for_command("Execute command SparkUploadJarServiceCommand on service Spark",
-                                 service._cmd('SparkUploadJarServiceCommand'))
+                                 service.status_for_command('SparkUploadJarServiceCommand'))
 
         # This service is started later on
         # check.status_for_command("Starting Spark Service", service.start())
