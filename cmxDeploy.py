@@ -280,7 +280,10 @@ def setup_hbase():
         hosts = manager.get_hosts()
 
         # Service-Wide
-        service.update_config(cdh.dependencies_for(service))
+        service_config = {"hbase_enable_indexing": True, "hbase_enable_replication": True,
+                          "zookeeper_session_timeout": "30000"}
+        service_config.update(cdh.dependencies_for(service))
+        service.update_config(service_config)
 
         # Role Config Group equivalent to Service Default Group
         for rcg in [x for x in service.get_all_role_config_groups()]:
@@ -1201,7 +1204,7 @@ def teardown(keep_cluster=True):
     # Delete Management Services
     try:
         mgmt = api.get_cloudera_manager()
-        check.status_for_command("Stop Management services", mgmt.get_service().stop())
+        check.status_for_command("Stop Management services", mgmt.get_service().stop().wait())
         mgmt.delete_mgmt_service()
     except ApiException as err:
         print " ERROR: %s" % err.message
