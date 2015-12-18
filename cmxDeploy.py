@@ -279,6 +279,18 @@ def setup_hbase():
         # Service-Wide
         service.update_config(cdh.dependencies_for(service))
 
+        # Role Config Group equivalent to Service Default Group
+        for rcg in [x for x in service.get_all_role_config_groups()]:
+            if rcg.roleType == "MASTER":
+                rcg.update_config({"hbase_master_java_heapsize": "492830720"})
+            if rcg.roleType == "REGIONSERVER":
+                rcg.update_config({"hbase_regionserver_java_heapsize": "365953024",
+                                   "hbase_regionserver_java_opts": "-XX:+UseParNewGC -XX:+UseConcMarkSweepGC "
+                                                                   "-XX:-CMSConcurrentMTEnabled "
+                                                                   "-XX:CMSInitiatingOccupancyFraction=70 "
+                                                                   "-XX:+CMSParallelRemarkEnabled -verbose:gc "
+                                                                   "-XX:+PrintGCDetails -XX:+PrintGCDateStamps"})
+
         for role_type in ['MASTER', 'HBASETHRIFTSERVER', 'HBASERESTSERVER']:
             cdh.create_service_role(service, role_type, random.choice(hosts))
 
@@ -587,10 +599,11 @@ def setup_hive():
         for rcg in [x for x in service.get_all_role_config_groups()]:
             if rcg.roleType == "HIVEMETASTORE":
                 rcg.update_config({"hive_metastore_java_heapsize": "1073741824"})
-                cdh.create_service_role(service, rcg.roleType, random.choice(hosts))
             if rcg.roleType == "HIVESERVER2":
                 rcg.update_config({"hiveserver2_java_heapsize": "144703488"})
-                cdh.create_service_role(service, rcg.roleType, random.choice(hosts))
+
+        for role_type in ['HIVEMETASTORE', 'HIVESERVER2']:
+            cdh.create_service_role(service, role_type, random.choice(hosts))
 
         for host in manager.get_hosts(include_cm_host=True):
             cdh.create_service_role(service, "GATEWAY", host)
@@ -738,7 +751,7 @@ def setup_oozie():
         # Role Config Group equivalent to Service Default Group
         for rcg in [x for x in service.get_all_role_config_groups()]:
             if rcg.roleType == "OOZIE_SERVER":
-                rcg.update_config({})
+                rcg.update_config({"oozie_java_heapsize": "492830720"})
                 cdh.create_service_role(service, rcg.roleType, [x for x in hosts if x.id == 0][0])
 
         check.status_for_command("Creating Oozie database", service.create_oozie_db())
