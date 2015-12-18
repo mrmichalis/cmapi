@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0701'
+__version__ = '0.13.0702'
 
 import socket
 import re
@@ -583,8 +583,14 @@ def setup_hive():
         service_config.update(cdh.dependencies_for(service))
         service.update_config(service_config)
 
-        for role_type in ['HIVEMETASTORE', 'HIVESERVER2']:
-            cdh.create_service_role(service, role_type, random.choice(hosts))
+        # Role Config Group equivalent to Service Default Group
+        for rcg in [x for x in service.get_all_role_config_groups()]:
+            if rcg.roleType == "HIVEMETASTORE":
+                rcg.update_config({"hive_metastore_java_heapsize": "1073741824"})
+                cdh.create_service_role(service, rcg.roleType, random.choice(hosts))
+            if rcg.roleType == "HIVESERVER2":
+                rcg.update_config({"hiveserver2_java_heapsize": "144703488"})
+                cdh.create_service_role(service, rcg.roleType, random.choice(hosts))
 
         for host in manager.get_hosts(include_cm_host=True):
             cdh.create_service_role(service, "GATEWAY", host)
