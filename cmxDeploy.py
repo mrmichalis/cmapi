@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 __author__ = 'Michalis'
-__version__ = '0.13.0700'
+__version__ = '0.13.0701'
 
 import socket
 import re
@@ -1820,11 +1820,28 @@ def main():
     setup_flume()
     setup_spark_on_yarn()
     setup_hive()
+    # setup_sentry()
     setup_sqoop()
     setup_sqoop_client()
     setup_impala(enable_llama=False)
     setup_oozie()
     setup_hue()
+
+    # Restart Cluster and Deploy Cluster wide client config
+    # cdh.restart_cluster()
+
+    # Other examples of CM API
+    # eg: "STOP" Services or "START"
+
+    cdh('HBASE', 'IMPALA', 'SPARK', 'SOLR', 'FLUME').stop()
+
+    # if cmx.amon_password and cmx.rman_password:
+    #     # Example restarting Management Service
+    #     # management_role.restart_management()
+    #     # or Restart individual Management Roles
+    #     manager(*mgmt_roles).restart()
+    #     # Stop REPORTSMANAGER Management Role
+    #     manager("REPORTSMANAGER").stop()
 
     # Note: setup_easy() is alternative to Step-Through above
     # This this provides an example of alternative method of
@@ -1835,29 +1852,6 @@ def main():
     # You can uncomment below after you've setup the CDH services.
     # setup_hdfs_ha()
     # setup_yarn_ha()
-
-    # Deploy GPL Extra Parcel
-    # deploy_parcel(parcel_product=cmx.parcel[1]['product'],
-    #               parcel_version=cmx.parcel[1]['version'])
-
-    # Restart Cluster and Deploy Cluster wide client config
-    cdh.restart_cluster()
-
-    # Other examples of CM API
-    # eg: "STOP" Services or "START"
-
-    cdh('HBASE', 'IMPALA', 'SPARK', 'SOLR', 'FLUME').stop()
-
-    if cmx.amon_password and cmx.rman_password:
-        # Example restarting Management Service
-        # management_role.restart_management()
-        # or Restart individual Management Roles
-        manager(*mgmt_roles).restart()
-        # Stop REPORTSMANAGER Management Role
-        manager("REPORTSMANAGER").stop()
-
-    # Example setup Sentry
-    # setup_sentry()
 
     # Example enable Kerberos
     # cmx.kerberos = {'kdc_host': '10-0-2-15.example.com',
