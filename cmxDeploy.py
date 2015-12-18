@@ -214,7 +214,7 @@ def setup_hdfs():
             if rcg.roleType == "NAMENODE":
                 # hdfs-NAMENODE - Default Group
                 rcg.update_config({"dfs_name_dir_list": "/data/dfs/nn",
-                                   "namenode_java_heapsize": "492830720",
+                                   "namenode_java_heapsize": "1073741824",
                                    "dfs_namenode_handler_count": "30",
                                    "dfs_namenode_service_handler_count": "30",
                                    "dfs_namenode_servicerpc_address": "8022"})
@@ -222,7 +222,7 @@ def setup_hdfs():
             if rcg.roleType == "SECONDARYNAMENODE":
                 # hdfs-SECONDARYNAMENODE - Default Group
                 rcg.update_config({"fs_checkpoint_dir_list": "/data/dfs/snn",
-                                   "secondary_namenode_java_heapsize": "492830720"})
+                                   "secondary_namenode_java_heapsize": "1073741824"})
                 # chose a server that it's not NN, easier to enable HDFS-HA later
                 secondary_nn = random.choice([host for host in hosts if host.hostId not in
                                               [x.hostRef.hostId for x in service.get_roles_by_type("NAMENODE")]]) \
@@ -1288,10 +1288,10 @@ class ManagementActions:
             elif group.roleType == "EVENTSERVER":
                 group.update_config({"event_server_heapsize": "492830720"})
             elif group.roleType == "HOSTMONITOR":
-                group.update_config({"firehose_non_java_memory_bytes": "1152385024",
+                group.update_config({"firehose_non_java_memory_bytes": "1610612736",
                                      "firehose_heapsize": "268435456"})
             elif group.roleType == "SERVICEMONITOR":
-                group.update_config({"firehose_non_java_memory_bytes": "1152385024",
+                group.update_config({"firehose_non_java_memory_bytes": "1610612736",
                                      "firehose_heapsize": "268435456"})
             elif group.roleType == "NAVIGATOR" and manager.licensed():
                 group.update_config({"navigator_heapsize": "492830720"})
