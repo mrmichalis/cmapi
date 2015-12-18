@@ -1834,7 +1834,7 @@ def main():
     setup_hue()
 
     # Restart Cluster and Deploy Cluster wide client config
-    # cdh.restart_cluster()
+    cdh.restart_cluster()
 
     # Other examples of CM API
     # eg: "STOP" Services or "START"
